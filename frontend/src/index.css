@@ -10,4 +10,65 @@ body {
   @apply transition-colors duration-200;
 }
 
+/* --- Add this entire block to the end of index.css --- */
 
+/* These styles ONLY apply when printing */
+@media print {
+  
+  /* --- 1. Hide everything by default --- */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* --- 2. Show ONLY the report content --- */
+  #report-content, #report-content * {
+    visibility: visible;
+  }
+  
+  /* --- 3. Reset report position --- */
+  #report-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  /* --- 4. Force-hide UI elements --- */
+  nav, footer, .no-print, button, form {
+    display: none !important;
+  }
+  
+  /* --- 5. Configure the PDF page --- */
+  @page {
+    size: A4; /* Standard A4 paper */
+    margin: 20mm; /* Add some margins */
+  }
+  
+  /* --- 6. Fix Dark Mode for Printing --- */
+  
+  /* Force a white background */
+  body, html {
+    background-color: #ffffff !important;
+  }
+  
+  /* Force all text to be black */
+  body, h1, h2, h3, p, span, div, text, .text-cosmic-accent {
+    color: #000000 !important;
+  }
+  
+  /* Reset chart card styles for printing */
+  .chart-container {
+    background: #ffffff !important;
+    border: 1px solid #cccccc !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    page-break-inside: avoid; /* Try to keep charts from splitting */
+    margin-top: 20px;
+  }
+
+  /* Ensure Chart.js legends and scales are black */
+  .chartjs-legend-item-text, 
+  .chartjs-scale-labels * {
+    color: #000000 !important;
+  }
+}
