@@ -23,10 +23,10 @@ export default function MetricsCard({ performance, isLoading }) {
   
   // Use placeholder data if no performance prop is given
   const defaultMetrics = {
-    rf: { accuracy: 0.0, f1_score: 0.0 },
-    mlp: { accuracy: 0.0, f1_score: 0.0 },
-    svm: { accuracy: 0.0, f1_score: 0.0 },
-    knn: { accuracy: 0.0, f1_score: 0.0 }
+    "Random Forest (RF)": { accuracy: 0.0, f1_score: 0.0 },
+    "Multi-Layer Perceptron (MLP)": { accuracy: 0.0, f1_score: 0.0 },
+    "Support Vector Machine (SVM)": { accuracy: 0.0, f1_score: 0.0 },
+    "K-Nearest Neighbours (KNN)": { accuracy: 0.0, f1_score: 0.0 }
   };
   
   const data = performance || defaultMetrics;
@@ -40,7 +40,8 @@ export default function MetricsCard({ performance, isLoading }) {
         <div className="space-y-4">
           {Object.entries(data).map(([modelName, metrics]) => (
             <div key={modelName} className="p-3 bg-black/30 rounded-lg border border-white/10">
-              <h3 className="text-sm font-semibold uppercase text-white/90 mb-2">
+              {/* --- THIS IS THE MODIFIED LINE --- */}
+              <h3 className="text-sm font-semibold uppercase text-[#00c4ff] mb-2">
                 {modelName}
               </h3>
               <div className="space-y-2">
