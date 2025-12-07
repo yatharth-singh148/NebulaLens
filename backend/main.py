@@ -7,6 +7,11 @@ import os
 from collections import Counter
 import google.generativeai as genai
 from dotenv import load_dotenv
+# uvicorn main:app --reload -- TERMINAL
+# --- NEW IMPORTS FOR DEEP LEARNING ---
+from keras.models import load_model
+
+# TO START THE BACKEND, RUN "uvicorn main:app --reload"
 
 # --- 1. Initialize FastAPI App ---
 app = FastAPI(
@@ -24,12 +29,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- 3. Gemini API Setup (NEW) ---
-# This will load the .env file from the backend folder
+# --- 3. Gemini API Setup ---
 load_dotenv() 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Add a check for the API key
 if not GEMINI_API_KEY:
     print("CRITICAL ERROR: GEMINI_API_KEY not found in .env file.")
 else:
@@ -50,31 +53,48 @@ class CosmicFeatures(BaseModel):
     z: float
     redshift: float
 
-# This is for the new explanation endpoint (NEW)
 class ExplanationRequest(BaseModel):
     prediction: str
     confidence: float
-    # You could also add the 'features' here for an even better prompt
-    # features: CosmicFeatures 
 
 # --- 5. Load The Models AND THE SCALER ---
 models_path = "./models/"
 try:
+    # Load Scaler
     scaler_path = os.path.join(models_path, 'star_classifier_scaler.joblib')
     scaler = joblib.load(scaler_path)
     
+    # Load Scikit-Learn Models
     model_svm = joblib.load(os.path.join(models_path, 'model_svm.joblib'))
     model_mlp = joblib.load(os.path.join(models_path, 'model_mlp.joblib'))
     model_knn = joblib.load(os.path.join(models_path, 'model_knn.joblib'))
     model_rf = joblib.load(os.path.join(models_path, 'model_rf.joblib'))
     
+    # --- NEW: Load Deep Learning Model & Encoder ---
+    # We use 'try-except' specifically for DL in case the file hasn't been moved yet
+    try:
+        model_dl = load_model(os.path.join(models_path, 'model_dl.h5'))
+        dl_encoder = joblib.load(os.path.join(models_path, 'dl_label_encoder.joblib'))
+        dl_loaded = True
+        print("Deep Learning model loaded successfully.")
+    except Exception as e:
+        print(f"Warning: Could not load Deep Learning model: {e}")
+        model_dl = None
+        dl_encoder = None
+        dl_loaded = False
+
     models = {
         "svm": model_svm,
         "mlp": model_mlp,
         "knn": model_knn,
-        "rf": model_rf
+        "rf": model_rf,
     }
-    print("Scaler and all models loaded successfully.")
+    
+    # Add DL to the dictionary if it loaded
+    if dl_loaded:
+        models["dl"] = model_dl
+
+    print("Scaler and standard models loaded successfully.")
 
 except Exception as e:
     print(f"CRITICAL ERROR loading models or scaler: {e}")
@@ -87,6 +107,7 @@ async def predict(features: CosmicFeatures):
     if not models or not scaler:
         return {"error": "Models or Scaler are not loaded. Check backend server logs."}
 
+    # 1. Prepare Input
     try:
         input_data = [
             features.u, features.g, features.r,
@@ -96,18 +117,40 @@ async def predict(features: CosmicFeatures):
     except Exception as e:
         return {"error": f"Error creating input array: {e}"}
 
+    # 2. Scale Input
     try:
         input_scaled = scaler.transform(input_array)
     except Exception as e:
         return {"error": f"Error during data scaling: {e}"}
 
+    # 3. Run Predictions
     predictions = {}
     for model_name, model in models.items():
         try:
-            raw_probabilities = model.predict_proba(input_scaled)[0]
-            model_classes = model.classes_
-            probabilities = {cls: prob for cls, prob in zip(model_classes, raw_probabilities)}
-            main_prediction = max(probabilities, key=probabilities.get)
+            # --- NEW: Special Logic for Deep Learning (Keras) ---
+            if model_name == "dl":
+                # Keras .predict returns probabilities directly [[0.1, 0.8, 0.1]]
+                raw_probabilities = model.predict(input_scaled, verbose=0)[0]
+                
+                # Get the index of the highest probability (0, 1, or 2)
+                predicted_index = np.argmax(raw_probabilities)
+                
+                # Use the encoder to turn (0, 1, 2) back into ("STAR", etc.)
+                main_prediction = dl_encoder.inverse_transform([predicted_index])[0]
+                
+                # Create the probabilities dictionary manually using encoder classes
+                # dl_encoder.classes_ gives us ['GALAXY', 'QSO', 'STAR']
+                probabilities = {
+                    cls: float(prob) 
+                    for cls, prob in zip(dl_encoder.classes_, raw_probabilities)
+                }
+
+            # --- Standard Logic for Scikit-Learn Models ---
+            else:
+                raw_probabilities = model.predict_proba(input_scaled)[0]
+                model_classes = model.classes_
+                probabilities = {cls: prob for cls, prob in zip(model_classes, raw_probabilities)}
+                main_prediction = max(probabilities, key=probabilities.get)
             
             predictions[model_name] = {
                 "prediction": main_prediction,
@@ -121,36 +164,36 @@ async def predict(features: CosmicFeatures):
                 "probabilities": {"Error": f"{e}"}
             }
 
-    # --- Model Agreement (UPDATED) ---
+    # --- 4. Model Agreement ---
     prediction_list = [result["prediction"] for result in predictions.values() if "Error" not in result["probabilities"]]
     
     if prediction_list:
         most_common = Counter(prediction_list).most_common(1)[0]
         winning_prediction = most_common[0]
         
-        # --- NEW: Calculate average confidence for the consensus prediction ---
         confidences = [
             result["confidence"] 
             for result in predictions.values() 
             if result.get("prediction") == winning_prediction
         ]
         avg_confidence = sum(confidences) / len(confidences) if confidences else 0
-        # --- END NEW ---
 
         model_agreement = {
             "prediction": winning_prediction,
             "count": most_common[1],
             "total": len(prediction_list),
-            "confidence": avg_confidence  # <-- ADDED FOR THE FRONTEND
+            "confidence": avg_confidence 
         }
     else:
         model_agreement = {"prediction": "Error", "count": 0, "total": 0, "confidence": 0}
 
+    # --- 5. Performance Metrics (Updated with DL) ---
     performance_metrics = {
-        "Support Vector Machine (SVM)": {"accuracy": 0.92, "precision": 0.91, "recall": 0.92, "f1_score": 0.91},
-        "Multi-Layer Perceptron (MLP)": {"accuracy": 0.95, "precision": 0.94, "recall": 0.95, "f1_score": 0.94},
-        "K-Nearest Neighbours (KNN)": {"accuracy": 0.89, "precision": 0.88, "recall": 0.89, "f1_score": 0.88},
-        "Random Forest (RF)": {"accuracy": 0.97, "precision": 0.97, "recall": 0.97, "f1_score": 0.97}
+        "Random Forest (RF)": {"accuracy": 0.97, "f1_score": 0.97},
+        "Deep Learning (DL)": {"accuracy": 0.97, "f1_score": 0.97}, # NEW!
+        "Multi-Layer Perceptron (MLP)": {"accuracy": 0.95, "f1_score": 0.94},
+        "Support Vector Machine (SVM)": {"accuracy": 0.92, "f1_score": 0.91},
+        "K-Nearest Neighbours (KNN)": {"accuracy": 0.89, "f1_score": 0.88},
     }
 
     return {
@@ -160,14 +203,13 @@ async def predict(features: CosmicFeatures):
         "input_features": features.dict()
     }
 
-# --- 7. Gemini Explanation Endpoint (NEW) ---
+# --- 7. Gemini Explanation Endpoint (Unchanged) ---
 @app.post("/get_explanation")
 async def get_gemini_explanation(request: ExplanationRequest):
     if not gemini_model:
         return {"error": "Gemini model is not initialized. Check API key."}
     
     try:
-        # Craft a detailed prompt for Gemini
         prompt = f"""
         You are an expert astronomer and data scientist.
         My ensemble model just made a prediction with the following consensus results:
@@ -187,11 +229,7 @@ async def get_gemini_explanation(request: ExplanationRequest):
         
         Keep the tone professional, informative, and accessible.
         """
-        
-        # Call the Gemini API
         response = gemini_model.generate_content(prompt)
-        
-        # Return the text from Gemini
         return {"explanation": response.text}
 
     except Exception as e:
@@ -203,15 +241,12 @@ async def get_gemini_explanation(request: ExplanationRequest):
 def get_feature_importance():
     if not models or 'rf' not in models:
         return {"error": "Random Forest model not loaded."}
-    
     try:
         rf_model = models['rf']
         importances = rf_model.feature_importances_
         feature_names = ['u', 'g', 'r', 'i', 'z', 'redshift']
-        
         zipped_data = sorted(zip(feature_names, importances), key=lambda x: x[1], reverse=True)
         sorted_importances = {item[0]: item[1] for item in zipped_data}
-        
         return sorted_importances
     except Exception as e:
         return {"error": f"Could not get feature importance: {e}"}

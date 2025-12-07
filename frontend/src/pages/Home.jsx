@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import ParameterForm from "../components/ParameterForm";
-import MetricsCard from "../components/MetricsCard";
+// Removed MetricsCard import as it's being replaced
 import ResultCard from "../components/ResultCard";
 import PredictionLog from "../components/PredictionLog";
 
@@ -16,8 +16,6 @@ export default function Home() {
     return () => clearTimeout(timer); 
   }, []); 
 
-  const hasResult = apiResult && !apiResult.error;
-
   return (
     <section 
       className="flex flex-col items-center text-center px-6 py-16"
@@ -29,8 +27,7 @@ export default function Home() {
           ${isMounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10'}
         `}
       >
-        {/* --- THIS IS THE MODIFIED LINE --- */}
-        <span className="text-[#00c4ff]">NebulaLens</span>: Decoding the Universe with Machine Learning
+        <span className="text-[#00c4ff]">NebulaLens</span>: Decoding the Universe with Machine Learning & Deep Learning
       </h1>
       <p 
         className={`
@@ -43,42 +40,37 @@ export default function Home() {
         to experiment with "what-if" scenarios.
       </p>
 
-      <div className="max-w-5xl w-full space-y-8">
+      <div className="max-w-6xl w-full space-y-8">
         
+        {/* GRID LAYOUT UPDATE:
+           - ParameterForm is on the Left
+           - ResultCard (with all 3 sections) is on the Right
+           - 'items-start' prevents the shorter card from stretching to match the taller one
+        */}
         <div 
           className={`
-            grid grid-cols-1 md:grid-cols-2 gap-8
+            grid grid-cols-1 lg:grid-cols-2 gap-8 items-start
             transition-all duration-1000 ease-out delay-300
             ${isMounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10'}
           `}
         >
+          {/* LEFT COLUMN: Inputs */}
           <ParameterForm 
             setIsLoading={setIsLoading} 
             setApiResult={setApiResult} 
             setPredictionLog={setPredictionLog}
           />
-          <MetricsCard 
-            performance={apiResult?.performance} 
+
+          {/* RIGHT COLUMN: Results (Replaces MetricsCard) */}
+          {/* We remove the condition so this is always visible as a placeholder */}
+          <ResultCard 
+            predictions={apiResult?.predictions} 
+            modelAgreement={apiResult?.model_agreement}
             isLoading={isLoading} 
           />
         </div>
 
-        {(isLoading || hasResult) && (
-          <div 
-            className={`
-              w-full
-              transition-all duration-1000 ease-out delay-400
-              ${isMounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10'}
-            `}
-          >
-            <ResultCard 
-              predictions={apiResult?.predictions} 
-              modelAgreement={apiResult?.model_agreement}
-              isLoading={isLoading} 
-            />
-          </div>
-        )}
-
+        {/* LOG SECTION (Bottom) */}
         <div 
           className={`
             w-full
