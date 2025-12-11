@@ -1,6 +1,8 @@
 import joblib
 import numpy as np
 from fastapi import FastAPI
+from fastapi import Request
+from fastapi.responses import Response
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import os
@@ -28,8 +30,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-@app.get("/health", status_code=200)
-def health_check():
+@app.api_route("/health", methods=["GET", "HEAD"], status_code=200)
+async def health_check(request: Request):
+    if request.method == "HEAD":
+        # For HEAD, return empty body but success status
+        return Response(status_code=200)
     return {"status": "online"}
 # --- 3. Gemini API Setup ---
 load_dotenv() 
