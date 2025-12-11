@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 // --- CONFIGURATION ---
-const ENABLE_AI_EXPLANATION = false;
+const ENABLE_AI_EXPLANATION = true;
 const TYPEWRITER_SPEED_MS = 5;
 
 // --- HELPER: Color Mapping for Classes ---
