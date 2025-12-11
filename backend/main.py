@@ -28,7 +28,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+@app.get("/health", status_code=200)
+def health_check():
+    return {"status": "online"}
 # --- 3. Gemini API Setup ---
 load_dotenv() 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
