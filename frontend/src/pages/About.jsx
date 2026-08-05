@@ -1,4 +1,3 @@
-// src/pages/About.jsx
 import React from 'react';
 
 // Reusable component for the accuracy bar

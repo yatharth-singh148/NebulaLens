@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import ParameterForm from "../components/ParameterForm";
-// Removed MetricsCard import as it's being replaced
 import ResultCard from "../components/ResultCard";
 import PredictionLog from "../components/PredictionLog";
 

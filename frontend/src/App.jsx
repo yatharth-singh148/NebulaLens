@@ -5,10 +5,8 @@ import Home from "./pages/Home";
 import Models from "./pages/Models";
 import Visualizer from "./pages/Visualizer";
 import About from "./pages/About";
-import StarryBackground from "./components/StarryBackground"; // --- 1. Import the component ---
+import StarryBackground from "./components/StarryBackground"; 
 
-// This "Layout" component wraps your pages
-// to keep the Navbar and Footer on every screen.
 const PageLayout = () => (
   <>
     <Navbar />

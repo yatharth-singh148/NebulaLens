@@ -1,4 +1,3 @@
-// src/pages/Models.jsx
 import React from 'react';
 
 const modelData = [
