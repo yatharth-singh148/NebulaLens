@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/NebulaLens.png" alt="NebulaLens Logo" width="180"/>
+  <img src="frontend/public/NebulaLens.png" alt="NebulaLens Logo" width="180"/>
 </p>
 
 # NebulaLens — ML & DL Enhanced Stellar Classification
