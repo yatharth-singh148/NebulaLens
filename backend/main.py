@@ -9,8 +9,6 @@ import os
 from collections import Counter
 import google.generativeai as genai
 from dotenv import load_dotenv
-# uvicorn main:app --reload -- TERMINAL
-# --- NEW IMPORTS FOR DEEP LEARNING ---
 from keras.models import load_model
 
 # TO START THE BACKEND, RUN "uvicorn main:app --reload"
@@ -33,7 +31,6 @@ app.add_middleware(
 @app.api_route("/health", methods=["GET", "HEAD"], status_code=200)
 async def health_check(request: Request):
     if request.method == "HEAD":
-        # For HEAD, return empty body but success status
         return Response(status_code=200)
     return {"status": "online"}
 # --- 3. Gemini API Setup ---
@@ -67,18 +64,12 @@ class ExplanationRequest(BaseModel):
 # --- 5. Load The Models AND THE SCALER ---
 models_path = "./models/"
 try:
-    # Load Scaler
     scaler_path = os.path.join(models_path, 'star_classifier_scaler.joblib')
     scaler = joblib.load(scaler_path)
-    
-    # Load Scikit-Learn Models
     model_svm = joblib.load(os.path.join(models_path, 'model_svm.joblib'))
     model_mlp = joblib.load(os.path.join(models_path, 'model_mlp.joblib'))
     model_knn = joblib.load(os.path.join(models_path, 'model_knn.joblib'))
     model_rf = joblib.load(os.path.join(models_path, 'model_rf.joblib'))
-    
-    # --- NEW: Load Deep Learning Model & Encoder ---
-    # We use 'try-except' specifically for DL in case the file hasn't been moved yet
     try:
         model_dl = load_model(os.path.join(models_path, 'model_dl.h5'))
         dl_encoder = joblib.load(os.path.join(models_path, 'dl_label_encoder.joblib'))
@@ -97,7 +88,6 @@ try:
         "rf": model_rf,
     }
     
-    # Add DL to the dictionary if it loaded
     if dl_loaded:
         models["dl"] = model_dl
 
@@ -136,23 +126,13 @@ async def predict(features: CosmicFeatures):
         try:
             # --- NEW: Special Logic for Deep Learning (Keras) ---
             if model_name == "dl":
-                # Keras .predict returns probabilities directly [[0.1, 0.8, 0.1]]
                 raw_probabilities = model.predict(input_scaled, verbose=0)[0]
-                
-                # Get the index of the highest probability (0, 1, or 2)
                 predicted_index = np.argmax(raw_probabilities)
-                
-                # Use the encoder to turn (0, 1, 2) back into ("STAR", etc.)
                 main_prediction = dl_encoder.inverse_transform([predicted_index])[0]
-                
-                # Create the probabilities dictionary manually using encoder classes
-                # dl_encoder.classes_ gives us ['GALAXY', 'QSO', 'STAR']
                 probabilities = {
                     cls: float(prob) 
                     for cls, prob in zip(dl_encoder.classes_, raw_probabilities)
                 }
-
-            # --- Standard Logic for Scikit-Learn Models ---
             else:
                 raw_probabilities = model.predict_proba(input_scaled)[0]
                 model_classes = model.classes_
@@ -170,8 +150,6 @@ async def predict(features: CosmicFeatures):
                 "confidence": 0,
                 "probabilities": {"Error": f"{e}"}
             }
-
-    # --- 4. Model Agreement ---
     prediction_list = [result["prediction"] for result in predictions.values() if "Error" not in result["probabilities"]]
     
     if prediction_list:
@@ -194,10 +172,10 @@ async def predict(features: CosmicFeatures):
     else:
         model_agreement = {"prediction": "Error", "count": 0, "total": 0, "confidence": 0}
 
-    # --- 5. Performance Metrics (Updated with DL) ---
+    # --- 5. Performance Metrics ---
     performance_metrics = {
         "Random Forest (RF)": {"accuracy": 0.97, "f1_score": 0.97},
-        "Deep Learning (DL)": {"accuracy": 0.97, "f1_score": 0.97}, # NEW!
+        "Deep Learning (DL)": {"accuracy": 0.97, "f1_score": 0.97},
         "Multi-Layer Perceptron (MLP)": {"accuracy": 0.95, "f1_score": 0.94},
         "Support Vector Machine (SVM)": {"accuracy": 0.92, "f1_score": 0.91},
         "K-Nearest Neighbours (KNN)": {"accuracy": 0.89, "f1_score": 0.88},
