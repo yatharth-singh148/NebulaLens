@@ -38,7 +38,7 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 client = None
-gemini_model = "gemini-2.5-flash"
+gemini_model = "gemini-3.8-flash"
 
 if not GEMINI_API_KEY:
     print("WARNING: GEMINI_API_KEY not found.")
